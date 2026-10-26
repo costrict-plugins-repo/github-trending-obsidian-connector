@@ -1,0 +1,670 @@
+```
+  ___  _         _    _ _                ___
+ / _ \| |__  ___(_) _| (_) __ _ _ __    / __\___  _ __  _ __   ___| |_ ___  _ __
+| | | | '_ \/ __| |/ _` | |/ _` | '_ \ / /  / _ \| '_ \| '_ \ / _ \ __/ _ \| '__|
+| |_| | |_) \__ \ | (_| | | (_| | | | / /__| (_) | | | | | | |  __/ || (_) | |
+ \___/|_.__/|___/_|\__,_|_|\__,_|_| |_\____/\___/|_| |_|_| |_|\___|\__\___/|_|
+
+                          Turn Claude into your second brain.
+```
+
+Morning briefings, idea capture, evening reflections, weekly reviews, project sync, session logging -- all driven by your Obsidian vault.
+
+100+ MCP tools. 100+ CLI commands. 15+ skills. 10+ vault presets. Portable skills for Codex, OpenCode, Gemini. Runs 100% locally.
+
+## What it does
+
+Your assistant proactively drives your day:
+- **Morning**: Reads your daily note, surfaces open loops and delegations, writes a briefing
+- **Ideas**: Captures thoughts to your vault in two seconds, surfaces related notes
+- **Evening**: Reviews what you accomplished, suggests what to carry forward
+- **Weekly**: Checks drift between intentions and actions, graduates ideas, audits vault health
+- **Sync**: Tracks all your git repos, writes structured session logs with time-series tags, maintains a running TODO list
+- **Init**: Walks you through creating a vault for your projects and personal context
+
+Works in Claude CLI (skills + hooks) and Claude Desktop (MCP tools + system prompt).
+
+> Obsidian is the operating system for knowledge work; Claude is the reasoning engine. The Obsidian Connector marries them, empowering users to leverage Claude's synthesis, reasoning, and writing strengths directly against their personal knowledge base -- without moving data off their machine.
+
+## Use cases
+
+**Knowledge work** -- Search your vault semantically, feed relevant notes to Claude for synthesis or gap analysis. Researchers extract themes across papers. Professionals ground decisions in historical patterns from their decision logs.
+
+**Thinking partner** -- Post rough thinking notes for feedback before committing. Capture raw ideas, then ask Claude to expand, stress-test, or find counterarguments. Detect circular reasoning across notes.
+
+**Daily operations** -- Morning briefings, weekly reviews, meeting follow-ups, project retrospectives. Claude scans your notes, identifies progress, flags blocked items, suggests next steps.
+
+**Writing pipeline** -- Outline + notes become drafts. Students scaffold theses from research notes. Engineers generate docs from architecture notes. Writers review multiple notes for tone and consistency.
+
+**Career and learning** -- Track learning notes over time; Claude identifies skill gaps. Extract accomplishments into resume framings. Prepare for 1:1s and interviews from your own notes.
+
+**Privacy-first** -- Vault stays local. Claude processes only what you explicitly share. No vendor lock-in, no external services, offline-capable.
+
+## Install
+
+This repo is a self-contained Claude marketplace. Pick the method that fits your setup.
+
+### Requirements
+
+- [Obsidian](https://obsidian.md) desktop app (v1.12+) with CLI enabled
+- Python 3.11+ ([download](https://www.python.org/downloads/))
+- macOS, Linux, or Windows
+
+| Method | Best for | What you get |
+|--------|----------|-------------|
+| **Marketplace install** | Claude Code users (CLI or Desktop Code tab) | Full: 15+ skills + hooks + 100+ MCP tools |
+| **macOS DMG** | Non-technical macOS users | Full plugin + Desktop MCP registration |
+| **Windows EXE** | Non-technical Windows users | Full plugin + Desktop MCP registration |
+| **Cowork upload** | Cowork tab users | Skills + MCP tools (no hooks) |
+| **Manual MCP config** | Chat tab only | 100+ MCP tools only |
+| **pip install** | Python developers | Core CLI + Python API (`menu` / `setup-wizard` via optional `tui` extra) |
+
+> See [Install Surfaces](docs/INSTALL.md) for a detailed comparison of all methods.
+
+### a. Marketplace Install (recommended)
+
+From Claude Code CLI or the Desktop Code tab:
+
+```bash
+claude plugin marketplace add mariourquia/obsidian-connector
+claude plugin install obsidian-connector@obsidian-connector
+```
+
+Or interactively: type `/plugin` in Claude Code, select **Add plugin**, and search for `obsidian-connector`.
+
+After installing, run the setup script to create the Python environment:
+
+```bash
+bash <plugin-dir>/scripts/setup.sh
+```
+
+This gives you 100+ MCP tools, 15+ skills (`/capture`, `/ritual`, `/sync`, `/explore`, `/float`, `/morning`, `/evening`, `/idea`, `/weekly`, and more), and a SessionStart hook that suggests workflows based on time of day.
+The setup script also installs the optional dashboard dependency, so `obsx menu` and `obsx setup-wizard` work out of the box.
+
+> **Note:** Plugin mode (`.mcp.json`) uses Unix venv paths. On Windows, use `scripts/Install.ps1` instead.
+
+### b. Installer (macOS DMG / Windows EXE)
+
+Download from the [latest release](https://github.com/mariourquia/obsidian-connector/releases/latest). The installer auto-detects Claude Desktop and Claude Code, configures both, creates the Python venv, and registers the MCP server. Restart Claude Desktop after installation.
+The installer includes the optional dashboard dependency used by `obsx menu` and `obsx setup-wizard`.
+
+### c. Cowork Tab
+
+In the Claude Desktop Cowork tab, click **Customize** > **Browse plugins** to find obsidian-connector. Skills and MCP tools work in Cowork. Hooks are Code-tab only.
+
+### d. Manual MCP Config (Chat tab fallback)
+
+**macOS / Linux:**
+
+```bash
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+./scripts/install.sh
+```
+
+**Linux (explicit):**
+
+```bash
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+bash scripts/install-linux.sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+.\scripts\Install.ps1
+```
+
+The install script creates the Python environment, installs the package, and writes the MCP server entry to your Claude Desktop config. Restart Claude Desktop and the Obsidian tools appear.
+
+<details>
+<summary>Full manual setup (no script)</summary>
+
+```bash
+git clone https://github.com/mariourquia/obsidian-connector.git
+cd obsidian-connector
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[tui]'
+```
+
+Then add this to your Claude Desktop config file:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"]
+    }
+  }
+}
+```
+
+Replace `/ABSOLUTE/PATH/TO/` with the actual clone path.
+
+To target a specific vault, add an `env` key:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-connector": {
+      "command": "/ABSOLUTE/PATH/TO/obsidian-connector/.venv/bin/python3",
+      "args": ["-m", "obsidian_connector.mcp_server"],
+      "env": { "OBSIDIAN_VAULT": "My Vault Name" }
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+</details>
+
+### d. macOS DMG (non-technical users)
+
+1. Go to [Releases](https://github.com/mariourquia/obsidian-connector/releases) and download the `.dmg` file
+2. Open the DMG
+3. Double-click **`Install.command`**
+4. Restart Claude Desktop
+
+No terminal required.
+
+> If macOS says the file cannot be opened: right-click `Install.command`, select **Open**, then click **Open** in the dialog.
+
+### e. Windows EXE (non-technical users)
+
+1. Go to [Releases](https://github.com/mariourquia/obsidian-connector/releases) and download the `.exe` installer
+2. Run the installer wizard
+3. Restart Claude Desktop
+
+The installer checks for Python, creates the venv, and registers the MCP server with Claude Desktop.
+
+### f. pip install (Python developers)
+
+```bash
+pip install obsx
+```
+
+This gives you the core `obsx` CLI (65 commands) and the Python API. It does not configure Claude Desktop -- use one of the options above for that.
+
+The distribution name on PyPI is `obsx`; the import name remains `obsidian_connector`. To enable the interactive dashboard and setup wizard on a bare Python install:
+
+```bash
+pip install 'obsx[tui]'
+# or from a local clone:
+pip install -e '.[tui]'
+```
+
+Without the optional extra, `obsx menu` and `obsx setup-wizard` exit with a short install-guidance message instead of crashing.
+
+### How to verify it worked
+
+**Claude Code:** Start a new session. The SessionStart hook prints a greeting with time-aware suggestions. Type `/morning` or `/evening` to confirm skills load.
+
+**Claude Desktop:** Open a new conversation. Click the tools icon (hammer) in the input area. You should see 100+ tools prefixed with `obsidian_`. Try asking Claude to run `obsidian_doctor`.
+
+**CLI:**
+
+```bash
+obsx doctor
+```
+
+A passing result confirms Obsidian connectivity and vault resolution.
+
+See [docs/INSTALL.md](docs/INSTALL.md) for a detailed breakdown of what each install surface provides and how to uninstall.
+
+## What's under the hood
+
+### Core vault operations
+
+| Tool | What it does |
+|---|---|
+| `obsidian_search` | Full-text search across all notes |
+| `obsidian_read` | Read a note by name or path |
+| `obsidian_tasks` | List tasks (filter by status, path, limit) |
+| `obsidian_log_daily` | Append text to today's daily note |
+| `obsidian_log_decision` | Log a structured decision record |
+| `obsidian_create_note` | Create a note from a template |
+| `obsidian_doctor` | Health check on CLI connectivity |
+
+### Research and discovery
+
+| Tool | What it does |
+|---|---|
+| `obsidian_find_prior_work` | Search + summarize top N matching notes |
+| `obsidian_challenge_belief` | Find counter-evidence to a belief in your vault |
+| `obsidian_emerge_ideas` | Cluster related notes into idea groups |
+| `obsidian_connect_domains` | Find connections between two domains |
+
+### Graph intelligence
+
+These tools read your vault's link structure directly -- backlinks, forward links,
+tags, orphan notes, dead ends -- without relying on the Obsidian CLI.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_neighborhood` | Graph neighborhood: backlinks, forward links, shared tags, N-hop neighbors |
+| `obsidian_vault_structure` | Vault topology: orphans, dead ends, unresolved links, tag cloud, most-connected |
+| `obsidian_backlinks` | All notes linking to a given note, with context lines |
+| `obsidian_rebuild_index` | Force-rebuild the vault graph index |
+
+### Thinking tools
+
+Deep analysis of your notes and writing patterns.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_ghost` | Analyze your writing voice from recent notes |
+| `obsidian_drift` | Detect drift between stated intentions and actual behavior |
+| `obsidian_trace` | Trace an idea's evolution across vault notes over time |
+| `obsidian_ideas` | Surface latent ideas from vault graph structure (orphans, clusters) |
+
+### Ix System Intelligence (Progressive Disclosure)
+
+Integrated from the [Ix project](https://github.com/ix-infrastructure/Ix), these tools allow the AI to map and trace your codebase or local system systematically rather than loading huge files blindly. The first run of an `ix` command will automatically initialize the Ix engine.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_ix_map` | Build a persistent system map (`.ix/`) from code and signals |
+| `obsidian_ix_explain` | Get a high-level explanation of any component |
+| `obsidian_ix_trace` | Trace how a flow moves through your system |
+| `obsidian_ix_impact` | Analyze the blast radius of a potential change |
+
+### Orchestrator (UX Chaining)
+
+To prevent tool fatigue, the connector supports deterministic YAML chaining. You can combine multiple subcommands (like searching, mapping with Ix, and logging) into a single recipe block.
+
+| Feature | What it does |
+|---|---|
+| `obsx run <recipe>` | Evaluates `~/.obsx/recipes/<recipe>.yml` step-by-step. |
+| `obsidian_investigate` | An MCP "Super-tool" that automatically chains `ix explain` and Obsidian graph searches locally before returning a highly compressed context payload to AI. |
+
+### Workflow OS
+
+Daily workflow, open loop tracking, idea graduation, and delegation management.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_my_world` | Full vault snapshot: recent notes, tasks, open loops, context |
+| `obsidian_today` | Today brief: daily note, tasks, open loops |
+| `obsidian_close_day` | End-of-day reflection prompt |
+| `obsidian_open_loops` | List open loops (`OL:` markers and `#openloop` tags) |
+| `obsidian_graduate_candidates` | Scan daily notes for ideas worth promoting to standalone notes |
+| `obsidian_graduate_execute` | Create an agent draft note from a graduated idea |
+| `obsidian_delegations` | Scan for `@agent:`/`@claude:` delegation instructions |
+| `obsidian_context_load` | Load full context bundle for agent session start |
+| `obsidian_check_in` | Time-aware check-in: ritual status, open loops, suggestions |
+
+### Project sync
+
+Cross-project state tracking, session logging with time-series tags, and a running TODO list.
+
+| Tool | What it does |
+|---|---|
+| `obsidian_sync_projects` | Sync all tracked git repos into the vault (Dashboard, Active Threads, Running TODO) |
+| `obsidian_project_status` | Get current git status for a single project |
+| `obsidian_active_threads` | List projects with active work (non-main branches or uncommitted changes) |
+| `obsidian_log_session` | Write a structured session log with work type tags for time-series analysis |
+| `obsidian_running_todo` | Aggregated open TODO items across the vault with completion tracking |
+| `obsidian_init_vault` | Initialize a new vault for project tracking (scaffold structure, auto-discover repos) |
+
+### Management
+
+| Tool | What it does |
+|---|---|
+| `obsidian_uninstall` | Safely remove installation artifacts (dry-run by default) |
+
+### HTTP mode (alternative)
+
+If you prefer running the server as a standalone HTTP endpoint:
+
+```bash
+cd obsidian-connector
+source .venv/bin/activate
+python3 -m obsidian_connector.mcp_server --http
+# Server starts on http://127.0.0.1:8000/mcp
+```
+
+Then use `http://127.0.0.1:8000/mcp` in Claude Desktop's "Add custom connector" UI.
+The `claude_desktop_config.json` approach (used by the installer) is recommended instead.
+
+## CLI usage
+
+65 commands available as `./bin/obsx` (works without venv activation) or `obsx`
+(after `pip install -e .` or `pip install -e '.[tui]'`).
+
+```bash
+# ── Core ──
+./bin/obsx search "quarterly review"
+./bin/obsx read "Project Alpha"
+./bin/obsx tasks --status todo
+./bin/obsx log-daily "Meeting notes: discussed Q3 roadmap"
+./bin/obsx log-decision --project "MyProject" --summary "Switched to event-driven" --details "200ms latency."
+./bin/obsx create-research-note --title "CMBS Analysis" --template "Template, Note"
+./bin/obsx doctor
+
+# ── Research ──
+./bin/obsx find-prior-work "machine learning" --top-n 3
+./bin/obsx challenge "note-taking improves memory"
+./bin/obsx emerge "project"
+./bin/obsx connect "real estate" "machine learning"
+
+# ── Graph ──
+./bin/obsx neighborhood "Home" --depth 2
+./bin/obsx vault-structure
+./bin/obsx backlinks "Project Alpha"
+./bin/obsx rebuild-index
+
+# ── Thinking ──
+./bin/obsx ghost --sample 20
+./bin/obsx drift --days 30
+./bin/obsx trace "factor model"
+./bin/obsx ideas
+
+# ── Workflow ──
+./bin/obsx my-world
+./bin/obsx today
+./bin/obsx close
+./bin/obsx open-loops
+./bin/obsx graduate list --lookback 7
+./bin/obsx graduate execute --title "Factor Model" --content "Analysis of..." --confirm
+./bin/obsx delegations --days 7
+./bin/obsx context-load
+./bin/obsx check-in                    # time-aware status + suggestion
+
+# ── Ix System Intel ──
+./bin/obsx ix map .                    # Index codebase map
+./bin/obsx ix explain auth             # Explain auth subsystem
+./bin/obsx ix trace login_route        # Trace flow and impact
+
+# ── Project Sync ──
+./bin/obsx init                        # interactive vault setup wizard
+./bin/obsx sync-projects               # sync all repos into the vault
+./bin/obsx project-status site         # single project git status
+./bin/obsx active-threads              # repos with uncommitted work
+./bin/obsx running-todo                # aggregated open TODO items
+./bin/obsx log-session --projects "obsidian-connector" --work-types "feature-dev" \
+  --completed "Built sync module" --next-steps "Write tests"
+
+# ── Management ──
+./bin/obsx uninstall                   # preview what would be removed (dry-run)
+./bin/obsx uninstall --force           # remove artifacts (prompts per item)
+
+# ── Configuration ──
+./bin/obsx setup-wizard                # guided first-run onboarding
+./bin/obsx menu                        # interactive config dashboard
+
+# ── Global flags (before subcommand) ──
+./bin/obsx --json search "OKRs"        # JSON envelope output
+./bin/obsx --vault "Work" search "q3"  # target specific vault
+./bin/obsx log-daily "test" --dry-run  # preview without writing
+```
+
+`setup-wizard` and `menu` require the optional `tui` extra on bare Python installs.
+The first-party installers and `scripts/setup.sh` already include it.
+
+## Python API
+
+```python
+from obsidian_connector import (
+    # Core
+    search_notes, read_note, list_tasks, log_to_daily,
+    log_decision, create_research_note, run_doctor,
+    # Research
+    find_prior_work, challenge_belief, emerge_ideas, connect_domains,
+    # Graph
+    build_note_index, load_or_build_index,
+    # Thinking
+    deep_ideas, drift_analysis, ghost_voice_profile, trace_idea,
+    # Workflows
+    today_brief, my_world_snapshot, close_day_reflection,
+    list_open_loops, graduate_candidates, graduate_execute,
+    detect_delegations, context_load_full, check_in,
+)
+
+# Search and read
+results = search_notes("quarterly review")
+content = read_note("Project Alpha")
+tasks = list_tasks(filter={"todo": True, "limit": 10})
+
+# Write
+log_to_daily("Finished deploy at 14:32")
+log_decision("MyProject", "Switched to event-driven", "Reduces latency to 200ms.")
+
+# Graph
+index = load_or_build_index()
+if index:
+    neighbors = index.neighborhood("Home.md", depth=2)
+    orphans = index.orphans
+
+# Thinking
+profile = ghost_voice_profile(sample_notes=20)
+drift = drift_analysis(lookback_days=30)
+
+# Workflows
+brief = today_brief()
+candidates = graduate_candidates(lookback_days=7)
+
+# Check-in
+status = check_in()  # time_of_day, pending_rituals, suggestion
+
+# Project sync
+from obsidian_connector import sync_projects, log_session, SessionEntry, init_vault
+sync_projects()  # writes Dashboard, Active Threads, Running TODO
+log_session([SessionEntry(project="my-app", work_types=["feature-dev"])])
+```
+
+## Configuration
+
+### Vault resolution (highest priority wins)
+
+1. Explicit argument -- `search_notes("query", vault="Work")` or `--vault Work`
+2. Environment variable -- `OBSIDIAN_VAULT_PATH` (directory) or `OBSIDIAN_VAULT` (name)
+3. `config.json` -- `vault_path` or `default_vault` field
+4. Obsidian's registered vaults -- auto-detected from `~/Library/Application Support/obsidian/obsidian.json`
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `OBSIDIAN_VAULT_PATH` | *(none)* | Direct path to vault directory |
+| `OBSIDIAN_VAULT` | *(none)* | Vault name (matched against Obsidian's registry) |
+| `OBSIDIAN_BIN` | `obsidian` | Path to the Obsidian binary |
+| `OBSIDIAN_TIMEOUT` | `30` | CLI command timeout in seconds |
+| `OBSIDIAN_CACHE_TTL` | `0` (off) | In-memory cache TTL for read-only commands |
+
+## Auto-sync on session end
+
+The plugin includes a `Stop` hook that automatically syncs your vault when a
+Claude Code session ends. Syncs are debounced (at most once every 10 minutes)
+and run in the background so they never block your workflow.
+
+Each sync captures:
+- Git state for all tracked projects (branch, commits, modified files)
+- AI agent attribution (which agents contributed in the last 30 days)
+- Running TODO aggregation (all open `- [ ]` items across the vault)
+
+## Safety
+
+- **Dry-run mode**: All mutating commands support `--dry-run` to preview without writing.
+- **Audit log**: Every mutation is logged to `~/.obsidian-connector/logs/YYYY-MM-DD.jsonl`.
+- **Agent drafts**: `graduate_execute` writes to `Inbox/Agent Drafts/` with provenance frontmatter (`source: agent`, `status: draft`). Agents read, humans approve.
+- **Path traversal protection**: Direct vault reads validate paths stay within the vault root.
+- **Local runtime**: All runtime operations use local IPC. No vault data or prompts leave the machine.
+- **Installer telemetry**: The macOS and Windows installers send a single anonymous event (platform, version, pass/fail) to help diagnose installation failures. No personal data is included. See [PRIVACY.md](PRIVACY.md) for details.
+
+See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
+
+## Troubleshooting
+
+**Obsidian must be running.** The connector communicates with the Obsidian app via IPC.
+If Obsidian is closed, all CLI-based tools return an `ObsidianNotRunning` error.
+(Graph tools like `neighborhood`, `vault-structure`, and `backlinks` read files directly
+and work without Obsidian running.)
+
+**"Operation not permitted" on macOS.** The installer points Claude Desktop directly at
+the venv's `python3` binary, which avoids macOS sandbox restrictions on shell scripts.
+If you previously used `bin/obsx-mcp` as the command, re-run `./scripts/install.sh` to
+update the config.
+
+**Verify connectivity:**
+
+```bash
+./bin/obsx doctor
+```
+
+### Windows known issues
+
+**Update Claude Code first.** Older versions of Claude Code on Windows have a bug where
+colons in MCP log directory paths cause plugin MCP servers to fail silently
+([anthropics/claude-code#13679](https://github.com/anthropics/claude-code/issues/13679)).
+Update to the latest version before installing:
+
+```powershell
+npm i -g @anthropic-ai/claude-code@latest
+# or: irm https://claude.ai/install.ps1 | iex
+```
+
+**Cowork marketplace empty on Windows.** The Cowork plugin marketplace may not load
+because `plugins.claude.ai` does not resolve via DNS on some Windows configurations.
+This is an Anthropic infrastructure issue
+([anthropics/claude-code#28853](https://github.com/anthropics/claude-code/issues/28853)).
+The plugin still works in the Code tab and CLI.
+
+**Plugin installed but not showing.** If the installer completed but skills don't
+appear, verify the plugin is enabled in `~/.claude/settings.json`:
+
+```json
+{
+  "enabledPlugins": {
+    "obsidian-connector@local": true
+  }
+}
+```
+
+The installer writes this automatically, but some Claude Code versions have a bug where
+`enabledPlugins` is not populated
+([anthropics/claude-code#20661](https://github.com/anthropics/claude-code/issues/20661)).
+
+## AI agent integration
+
+See [TOOLS_CONTRACT.md](TOOLS_CONTRACT.md) for the canonical JSON envelope schema,
+typed error hierarchy, and full command reference.
+
+## Second brain assistant
+
+Your assistant drives four workflows through skills, hooks, and scheduled automation.
+See the [Setup Guide](docs/setup-guide.md) for installation and the
+[Operating Manual](docs/daily-optimization.md) for all 18 recipes.
+
+## Claude Code plugin
+
+obsidian-connector is a Claude Code plugin available via the marketplace and local install.
+
+**Install:**
+```bash
+claude plugin install obsidian-connector
+# Or: claude --plugin-dir /path/to/obsidian-connector
+```
+
+Then run setup to create the Python venv:
+```bash
+bash <plugin-dir>/scripts/setup.sh
+```
+
+**What the plugin provides:**
+- 15+ skills: `/capture`, `/ritual`, `/new-vault`, `/sync`, `/morning`, `/evening`, `/idea`, `/weekly`, `/sync-vault`, `/init-vault`, `/float`, `/explore`, `/obsidian-markdown`, `/obsidian-bases`, `/json-canvas`, `/obsidian-cli`, `/defuddle`
+- SessionStart hook: suggests `/morning` or `/evening` based on time of day
+- 100+ MCP tools: full vault access (search, read, write, graph, thinking, workflows, drafts, templates, reports, project intelligence)
+- Post-install setup: `scripts/setup.sh` creates the Python venv
+
+**Plugin structure:**
+```
+.claude-plugin/plugin.json       # manifest (name, version, author)
+.claude-plugin/marketplace.json  # marketplace registry for Claude Desktop "Add marketplace"
+skills/*/SKILL.md                # 15+ skills (12 workflow + 5 knowledge)
+portable/                        # 5 portable skills for Codex/OpenCode/Gemini
+hooks/hooks.json                 # SessionStart hook config
+.mcp.json                        # MCP server config
+scripts/setup.sh                 # post-install venv bootstrap
+```
+
+**Note:** Plugin mode uses Unix venv paths. Windows users should use `scripts/Install.ps1` instead.
+
+## Vault presets
+
+Create a vault for any purpose with curated templates:
+
+```bash
+obsx create-vault --name "My Journal" --preset journaling
+```
+
+| Preset | Description |
+|--------|-------------|
+| `journaling` | Daily journaling with guided prompts and reflection templates |
+| `mental-health` | Thought records, mood tracking, CBT worksheets, coping strategies |
+| `business-ideas` | Idea evaluation, market analysis, pitch drafts, competitive landscape |
+| `research` | Literature notes, reading lists, methodology, synthesis across any domain |
+| `project-management` | Task tracking, sprint planning, retrospectives, decision logs |
+| `second-brain` | Zettelkasten-style: fleeting notes, literature notes, permanent notes, MOCs |
+| `vacation-planning` | Itineraries, budgets, packing lists, bookings, travel research |
+| `life-planning` | Goals, values, quarterly reviews, long-term vision |
+| `budgeting` | Expense tracking, financial goals, savings targets, debt payoff |
+| `creative-writing` | Drafts, worldbuilding, character sheets, plot outlines, prompts |
+| `self-expression` | Free writing, mood boards, manifestos, letters never sent, art journaling |
+| `poetry` | Draft poems, study forms (haiku to sonnet), build toward a chapbook |
+| `songwriting` | Lyrics, melodies, chord progressions, AI production tools, sync licensing |
+
+Vaults are created alongside your existing Obsidian vaults (auto-detected).
+Each comes with starter notes, templates, and directory structure.
+Discard any time with `obsx discard-vault`.
+
+## Portable skills (Codex CLI, OpenCode, Gemini CLI)
+
+5 knowledge skills packaged for any agent that supports the [Agent Skills](https://agentskills.io) specification:
+
+```bash
+# Codex CLI
+cp -r portable/skills/* ~/.codex/skills/
+
+# OpenCode
+cp -r portable/skills/* ~/.opencode/skills/
+
+# Universal (works with Codex + OpenCode natively)
+cp -r portable/skills/* ~/.agents/skills/
+```
+
+See [portable/README.md](portable/README.md) for all install paths.
+
+## Skill compatibility
+
+| Skill | Type | Plugin | Portable | Requires MCP | Requires Binary |
+|-------|------|:------:|:--------:|:------------:|:---------------:|
+| /morning | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /evening | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /idea | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /weekly | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /sync-vault | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /init-vault | Workflow | Yes | -- | Yes | Python 3.11+ |
+| /obsidian-markdown | Knowledge | Yes | Yes | -- | -- |
+| /obsidian-bases | Knowledge | Yes | Yes | -- | -- |
+| /json-canvas | Knowledge | Yes | Yes | -- | -- |
+| /obsidian-cli | Knowledge | Yes | Yes | -- | Obsidian 1.12+ |
+| /defuddle | Knowledge | Yes | Yes | -- | Node.js 18+ |
+
+## Roadmap
+
+See [docs/plans/ROADMAP.md](docs/plans/ROADMAP.md) for the prioritized backlog -- 23 items across
+4 milestones covering cross-platform support, resilience, intelligence, and
+integrations. Community PRs welcome.
+
+## License
+
+MIT

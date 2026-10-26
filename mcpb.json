@@ -1,0 +1,31 @@
+{
+  "name": "obsidian-connector",
+  "display_name": "Obsidian Connector",
+  "description": "Give Claude access to your Obsidian vault. Search notes, read content, log decisions, manage tasks, and think with your notes.",
+  "version": "0.11.1",
+  "author": "Mario Urquia",
+  "license": "MIT",
+  "repository": "https://github.com/mariourquia/obsidian-connector",
+  "command": ".venv/bin/python3",
+  "args": [
+    "-m",
+    "obsidian_connector.mcp_server"
+  ],
+  "env": {
+    "OBSIDIAN_VAULT": {
+      "description": "Default vault name",
+      "required": false
+    }
+  },
+  "requirements": [
+    "python3.11+",
+    "obsidian-desktop-1.12+"
+  ],
+  "categories": [
+    "productivity",
+    "notes",
+    "knowledge-management"
+  ],
+  "tools_count": 130,
+  "privacy_policy": "PRIVACY.md"
+}

@@ -1,0 +1,744 @@
+# Tools Contract -- obsidian-connector
+
+This document tells Claude Code (and other AI coding agents) how to interact
+with Obsidian through this project.  Read this file before touching the vault.
+
+## Golden rule
+
+**Never call the `obsidian` CLI directly.**  Use the MCP tools, Python API,
+or CLI wrapper instead.  They handle vault resolution, argument escaping,
+error detection, audit logging, and output parsing.
+
+## MCP tools (Claude Desktop / AI agents)
+
+When running as an MCP server (via `claude_desktop_config.json` or `--http`),
+100+ tools are available to Claude and other MCP clients.  All `vault`
+parameters are optional -- when omitted, the configured default vault is used.
+
+### Core vault operations
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_search` | `query`, `vault?` | JSON array of `{file, matches[{line, text}]}` |
+| `obsidian_read` | `name_or_path`, `vault?` | Raw markdown content of the note |
+| `obsidian_tasks` | `status?`, `path_prefix?`, `limit?`, `vault?` | JSON array of `{text, status, file, line}` |
+| `obsidian_log_daily` | `content`, `vault?` | Confirmation string |
+| `obsidian_log_decision` | `project`, `summary`, `details`, `vault?` | Confirmation string |
+| `obsidian_create_note` | `title`, `template`, `vault?` | Created file path |
+| `obsidian_doctor` | `vault?` | JSON array of health check results |
+
+### Research and discovery
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_find_prior_work` | `topic`, `top_n?`, `vault?` | JSON array of `{file, heading, excerpt, match_count}` |
+| `obsidian_challenge_belief` | `belief`, `vault?`, `max_evidence?` | JSON `{belief, counter_evidence[], supporting_evidence[], verdict}` |
+| `obsidian_emerge_ideas` | `topic`, `vault?`, `max_clusters?` | JSON `{topic, total_notes, clusters[]}` |
+| `obsidian_connect_domains` | `domain_a`, `domain_b`, `vault?`, `max_connections?` | JSON `{domain_a, domain_b, connections[], domain_a_only[], domain_b_only[]}` |
+
+### Graph intelligence
+
+These tools read vault `.md` files directly and work without Obsidian running.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_neighborhood` | `note_path`, `depth?`, `vault?` | JSON `{note, backlinks[], forward_links[], tags[], neighbors[]}` |
+| `obsidian_vault_structure` | `vault?` | JSON `{total_notes, orphans[], dead_ends[], unresolved_links{}, tag_cloud{}, top_connected[]}` |
+| `obsidian_backlinks` | `note_path`, `vault?` | JSON array of `{file, context_line, tags[]}` |
+| `obsidian_rebuild_index` | `vault?` | Confirmation with note count and timing |
+| `obsidian_vault_conflicts` | `vault_root?` | JSON `{ok, vault_root, scanned, items[{relative_path, provider, pattern_label, size_bytes}]}` -- scans for iCloud / Dropbox / OneDrive / Obsidian Sync conflict files (read-only) |
+
+### Thinking tools
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_ghost` | `sample_notes?`, `question?`, `vault?` | JSON voice profile `{patterns{}, summary}` |
+| `obsidian_drift` | `vault?`, `lookback_days?` | JSON `{intention, evidence[], drift_score, analysis}` |
+| `obsidian_trace` | `topic`, `max_notes?`, `vault?` | JSON `{idea, timeline[], evolution_summary}` |
+| `obsidian_ideas` | `vault?`, `max_ideas?` | JSON `{ideas[], graph_stats{}}` |
+
+### Workflow OS
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_my_world` | `vault?` | JSON full vault snapshot (recent notes, tasks, loops, context) |
+| `obsidian_today` | `vault?` | JSON today brief (daily note, tasks, loops) |
+| `obsidian_close_day` | `vault?` | JSON end-of-day reflection prompt |
+| `obsidian_open_loops` | `vault?`, `lookback_days?` | JSON array of open loop items |
+| `obsidian_graduate_candidates` | `vault?`, `lookback_days?` | JSON array of promotable idea candidates |
+| `obsidian_graduate_execute` | `title`, `content`, `source_file?`, `vault?`, `confirm?`, `dry_run?` | JSON created path + provenance |
+| `obsidian_delegations` | `vault?`, `lookback_days?` | JSON array of delegation instructions |
+| `obsidian_context_load` | `vault?` | JSON full context bundle for agent session start |
+| `obsidian_check_in` | `vault?`, `timezone?` | JSON `{time_of_day, daily_note_exists, completed_rituals[], pending_rituals[], pending_delegations, unreviewed_drafts, open_loop_count, suggestion}` |
+
+### Project sync
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_sync_projects` | `vault?`, `github_root?`, `update_todo?` | JSON `{synced, active_threads, projects_dir, dashboard, timestamp, todo_updated}` |
+| `obsidian_project_status` | `project`, `vault?`, `github_root?` | JSON `{project, branch, last_commit, uncommitted, activity, modified_files[], ...}` |
+| `obsidian_active_threads` | `vault?`, `github_root?` | JSON array of `{project, branch, uncommitted, last_commit, modified_files[]}` |
+| `obsidian_log_session` | `projects`, `work_types?`, `completed?`, `next_steps?`, `decisions?`, `session_context?`, `vault?` | JSON `{session_file, date, projects[], appended}` |
+| `obsidian_running_todo` | `vault?` | JSON `{total_open, total_completed, by_source{}, recent_completed[]}` |
+| `obsidian_init_vault` | `vault_path`, `github_root?`, `use_defaults?` | JSON `{vault_path, repos_tracked, dirs_created[], files_created[], config_file, next_step}` |
+
+### System administration
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_uninstall` | `dry_run?`, `remove_venv?`, `remove_skills?`, `remove_hook?`, `remove_plist?`, `remove_logs?`, `remove_cache?` | JSON removal plan (dry_run=true) or removal results (dry_run=false) |
+
+### Write safety (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_rollback` | `vault?` | JSON result of restored snapshot |
+
+### Draft management (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_list_drafts` | `vault?` | JSON array of draft info (path, age, status) |
+| `obsidian_approve_draft` | `draft_path`, `target_folder`, `vault?` | JSON confirmation with new path |
+| `obsidian_reject_draft` | `draft_path`, `vault?` | JSON confirmation with archive path |
+| `obsidian_clean_drafts` | `max_age_days?`, `dry_run?`, `vault?` | JSON list of archived drafts |
+
+### Vault registry (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_register_vault` | `name`, `path`, `profile?` | JSON confirmation |
+| `obsidian_set_default_vault` | `name` | JSON confirmation |
+
+### Templates (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_list_templates` | `vault?` | JSON array of template info |
+| `obsidian_create_from_template` | `template_name`, `title`, `vault?`, `variables?` | JSON with created file path |
+
+### Project intelligence (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_project_changelog` | `project_name`, `since_days?`, `vault?` | Markdown changelog string |
+| `obsidian_project_health` | `vault?` | JSON array of project health scores |
+| `obsidian_project_packet` | `days?`, `vault?` | Markdown weekly packet string |
+
+### Reports (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_generate_report` | `report_type`, `vault?` | JSON with report path and summary |
+
+### Telemetry (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_session_stats` | (none) | JSON session telemetry summary |
+
+### Index status (v0.6.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_index_status` | `vault?` | JSON with index age and staleness flag |
+
+### Commitment commands (v0.9.0)
+
+Commands operate on `Commitments/Open/` and `Commitments/Done/` in the vault.
+Mutating commands optionally sync status to `obsidian-capture-service` via
+`OBSIDIAN_CAPTURE_SERVICE_URL` + `OBSIDIAN_CAPTURE_SERVICE_TOKEN`.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_commitments` | `status?`, `project?`, `priority?`, `vault?` | JSON `{ok, count, commitments[{action_id, title, status, priority, project, due_at, postponed_until, requires_ack, path}]}` |
+| `obsidian_commitment_status` | `action_id`, `vault?` | JSON `{ok, commitment{...}}` or `{ok: false, error: {type: "NotFound"}}` |
+| `obsidian_mark_done` | `action_id`, `completed_at?`, `vault?` | JSON `{ok, action_id, previous_status, status, completed_at, path, moved_from, service_sync?}` |
+| `obsidian_postpone` | `action_id`, `until`, `vault?` | JSON `{ok, action_id, status, postponed_until, path, service_sync?}` |
+| `obsidian_add_reason` | `action_id`, `reason`, `vault?` | JSON `{ok, action_id, reason_added, timestamp, path, status}` |
+| `obsidian_due_soon` | `within_days?`, `vault?` | JSON `{ok, count, commitments[...+overdue]}` sorted earliest-due first |
+| `obsidian_sync_commitments` | `service_url?`, `vault?` | JSON `{ok, synced, errors[], source_url}` or `{ok: false, error}` |
+| `obsidian_review_dashboards` | `stale_days?`, `merge_window_days?`, `merge_jaccard?`, `now?`, `vault?` | JSON `{ok, count, dashboards[{path, written}]}` -- refreshes Daily, Weekly, Stale, Merge Candidates under `Dashboards/Review/` |
+| `obsidian_find_commitments` | `status?`, `lifecycle_stage?`, `project?`, `person?`, `area?`, `urgency?`, `priority?`, `source_app?`, `due_before?`, `due_after?`, `limit?`, `cursor?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, items[...], next_cursor}}` -- thin wrapper over `GET /api/v1/actions` on the capture service. Task 28. |
+| `obsidian_commitment_detail` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action{...}}}` -- thin wrapper over `GET /api/v1/actions/{id}`. Includes delivery summary, entity buckets, `next_follow_up_at`. Task 28. |
+| `obsidian_commitment_stats` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, total, by_status, by_lifecycle_stage, by_priority, by_source_app}}`. Task 28. |
+| `obsidian_duplicate_candidates` | `action_id`, `limit?`, `within_days?`, `min_score?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, candidates[...], thresholds: {candidate, strong}}}`. Each candidate has `score`, `tier`, and a `reasons` dict (title_jaccard, same_project, shared_people, shared_areas, days_apart, due_close). Task 21.B. |
+| `obsidian_merge_commitment` | `loser_id`, `winner_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, loser_id, winner_id, edge_id, already_merged}}`. POST `/api/v1/actions/{loser_id}/merge`. Atomic + idempotent. Task 21.B. |
+| `obsidian_repeated_postponements` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `action_id`, `title`, `status`, `count`, `first_postponed_at`, `last_postponed_at`, `last_reason`, `cumulative_days_slipped`. `GET /api/v1/patterns/repeated-postponements`. Task 31. |
+| `obsidian_blocker_clusters` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[...]}}`. Each item: `blocker_action_id`, `title`, `status`, `lifecycle_stage`, `blocks_count`, sorted `downstream_action_ids`, `oldest_edge_at`. `GET /api/v1/patterns/blocker-clusters`. Task 31. |
+| `obsidian_recurring_unfinished` | `by` (project\|person\|area), `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, by, since_days, items[...]}}`. Each item: `entity_id`, `canonical_name`, `slug`, `kind`, `open_count`, `median_age_days`, `oldest_open_at`, `action_ids`. `GET /api/v1/patterns/recurring-unfinished`. Task 31. |
+| `obsidian_explain_commitment` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, status, lifecycle_stage, urgency, reasons[{code,label,data}], inputs}}`. `GET /api/v1/actions/{id}/why-still-open`. Returns 404 when missing, 409 when terminal. Task 32. |
+| `obsidian_queue_health` | `since_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {enabled, reachable, counts, oldest_pending_age_seconds, error_rate, since_hours, window_done, window_failed}}`. `GET /api/v1/admin/queue-health`. Returns `enabled=false` when queue poller is off on service side. Task 44. |
+| `obsidian_delivery_failures` | `since_hours?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {since_hours, limit, items[...]}}`. Each item: `delivery_id`, `action_id`, `channel`, `attempt`, `status`, `last_error`, `scheduled_at`, `dispatched_at`, `action_title`. `GET /api/v1/admin/delivery-failures`. Task 44. |
+| `obsidian_pending_approvals` | `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {limit, items[...]}}`. Each item: `delivery_id`, `action_id`, `channel`, `target`, `status`, `scheduled_at`, `delivery_created_at`, `action_title`, `action_priority`, `action_lifecycle_stage`. `GET /api/v1/admin/pending-approvals`. Task 44. |
+| `obsidian_stale_sync_devices` | `threshold_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {threshold_hours, items[...]}}`. Each item: `device_id`, `last_synced_at`, `hours_since_last_sync`, `platform`, `app_version`, `pending_ops_count`. `GET /api/v1/admin/stale-sync-devices`. Task 44. |
+| `obsidian_system_health` | `service_url?` | JSON envelope `{ok, status_code, data: {overall_status, generated_at, doctor: {counts, checks}, queue, deliveries, approvals, devices}}`. Composite operator summary. `GET /api/v1/admin/system-health`. Task 44. |
+| `obsidian_delivery_detail` | `delivery_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, delivery, action?, risk_factors[], approval_history[]}}`. `GET /api/v1/deliveries/{id}`. 404 when missing. Task 36. |
+| `obsidian_bulk_approve` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, decision: "approved", requested, approved[], rejected[], skipped[{delivery_id, reason, detail}]}}`. Atomic per-batch. `POST /api/v1/deliveries/bulk-approve`. Task 36. |
+| `obsidian_bulk_reject` | `delivery_ids[]`, `note?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_approve` with `decision: "rejected"`. `POST /api/v1/deliveries/bulk-reject`. Task 36. |
+| `obsidian_approval_digest` | `since_hours?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_hours, pending_total, counts_by_channel, counts_by_urgency, oldest_pending_age_seconds, top_pending[...], recent_decisions_count, generated_at}}`. `GET /api/v1/deliveries/approval-digest`. Task 36. |
+| `obsidian_weekly_report` | `week_offset?`, `service_url?` | JSON envelope `{ok, status_code, data: {window, captures, actions_created, actions_completed, actions_postponed, lifecycle_transitions, delivery_stats, patterns_snapshot, health_snapshot}}`. `GET /api/v1/analytics/weekly`. Task 39. |
+| `obsidian_weekly_report_markdown` | `week_offset?`, `service_url?` | JSON envelope `{ok, status_code, data: {markdown}}`. The `markdown` value is the rendered Markdown body as a string. `GET /api/v1/analytics/weekly/markdown`. Task 39. |
+| `obsidian_weeks_available` | `weeks_back?`, `service_url?` | JSON envelope `{ok, status_code, data: {weeks_back, items[{start_iso, end_iso, week_label}]}}`. `GET /api/v1/analytics/weeks-available`. Task 39. |
+| `obsidian_write_weekly_report` | `week_offset?`, `vault_root?`, `service_url?` | JSON envelope `{ok, path, week_label}` on success. Writes `Analytics/Weekly/<year>/<week_label>.md`. Preserves any `service:analytics-user-notes:{begin,end}` fence on re-runs. Task 39. |
+| `obsidian_plan_import` | `root`, `include_globs?`, `exclude_globs?`, `min_size?`, `max_size?`, `max_files?` | JSON envelope `{ok, data: {root, total_scanned, to_import_as_capture[{path, title_guess, size_bytes, modified_at, content_sha256, idempotency_key, confidence}], to_skip_already_managed[], to_skip_size_out_of_range[], to_skip_unknown_kind[], warnings[]}}`. Pure planning -- no HTTP, no mutation. Refuses with `ok=false` when scan exceeds `max_files` (default 1000). Task 43. |
+| `obsidian_execute_import` | `root`, `dry_run?` (default `true`), `confirm?` (default `false`), `include_globs?`, `exclude_globs?`, `min_size?`, `max_size?`, `max_files?`, `throttle_seconds?`, `source_app?`, `service_url?`, `write_report?`, `vault_root?` | JSON envelope `{ok, data: {dry_run, started_at, finished_at, succeeded, failed, duplicates, posted[{relative_path, idempotency_key, ok, capture_id, duplicate, status_code, error, import_metadata_echoed}], plan: {...}}, report?: {ok, path}}`. POSTs each `to_import_as_capture` entry to `/api/v1/ingest/text` with deterministic `X-Idempotency-Key: vault-import-<sha256[:16]>` so re-runs collapse on the service-side Task 43 dedup substrate. **Defaults to dry-run.** Both `dry_run=false` AND `confirm=true` are required to actually POST -- either alone yields a no-op result. Per-file failures non-fatal. Task 43. |
+| `obsidian_delegate_commitment` | `action_id`, `to_person`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, delegated_to, delegated_to_entity_id, delegated_at, delegation_note, lifecycle_stage}}`. `POST /api/v1/actions/{id}/delegate`. Resolves person via alias / creates on miss. Idempotent on same person. Task 38. |
+| `obsidian_reclaim_commitment` | `action_id`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, status, lifecycle_stage}}`. `POST /api/v1/actions/{id}/reclaim`. Clears delegation + flips `waiting -> active`. Idempotent on a non-delegated row. Task 38. |
+| `obsidian_delegated_to` | `person`, `limit?`, `cursor?`, `include_terminal?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, person, items[...], next_cursor}}`. `GET /api/v1/actions/delegated-to/{person}`. Alias-aware. Keyset paginated. Task 38. |
+| `obsidian_stale_delegations` | `threshold_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, threshold_days, items[...]}}`. Per-person buckets of open actions delegated > N days ago. `GET /api/v1/patterns/stale-delegations`. Task 38. |
+| `obsidian_action_recommendations` | `action_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, action_id, recommendations[{code, label, action_verb, confidence, rationale, suggested_inputs}]}}`. `GET /api/v1/coaching/action/{id}`. 404 missing / 409 terminal. Task 40. |
+| `obsidian_review_recommendations` | `since_days?`, `limit?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, since_days, items[{action_id, title, urgency, recommendations[...], impact_score}]}}`. `GET /api/v1/coaching/review`. Sorted by `(impact_score DESC, action_id ASC)`. Task 40. |
+| `obsidian_bulk_ack` | `action_ids[]`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, verb: "ack", requested, succeeded[], skipped[{action_id, reason, detail}]}}`. Atomic per-batch. `POST /api/v1/actions/bulk-ack`. Cap `MAX_BULK_ACTION_IDS` (default 50). Task 41. |
+| `obsidian_bulk_done` | `action_ids[]`, `note?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_ack` with `verb: "done"`. `POST /api/v1/actions/bulk-done`. Task 41. |
+| `obsidian_bulk_postpone` | `action_ids[]`, `preset?` \| `postponed_until?`, `note?`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, verb: "postpone", resolved_postponed_until, requested, succeeded[], skipped[...]}}`. Client-side enforces exactly one of `preset` / `postponed_until`. `POST /api/v1/actions/bulk-postpone`. Task 41. |
+| `obsidian_bulk_cancel` | `action_ids[]`, `reason?`, `service_url?` | JSON envelope — mirror of `obsidian_bulk_ack` with `verb: "cancel"`. `POST /api/v1/actions/bulk-cancel`. Task 41. |
+| `obsidian_postpone_presets` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, presets[{name, label, description}]}}`. `GET /api/v1/actions/postpone-presets`. Read-only preset catalog (9 entries). Task 41. |
+| `obsidian_mobile_devices` | `service_url?` | JSON envelope `{ok, status_code, data: {ok, devices[{device_id, device_label, platform, app_version, first_seen_at, last_sync_at, pending_ops_count, last_cursor}]}}`. `GET /api/v1/mobile/devices`. Sorted `last_sync_at DESC NULLS LAST`. Task 42. |
+| `obsidian_forget_mobile_device` | `device_id`, `service_url?` | JSON envelope `{ok, status_code, data: {ok, device_id, deleted, cancelled_ops}}`. `POST /api/v1/mobile/devices/{id}/forget`. Atomic drop + supersede pending ops. Idempotent on missing id. Task 42. |
+
+### Code investigation (v0.9.0)
+
+Ix system exposes progressive-disclosure helpers for mapping and navigating code structure.
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_investigate` | `topic`, `vault?` | JSON `{ok, topic, summary, outline, next_steps, related}`. Progressive-disclosure walkthrough over indexed code + vault notes. |
+| `obsidian_ix_map` | `path?`, `vault?` | JSON `{ok, root, modules[...], generated_at}`. Triggers Ix to index or re-index the workspace/folder. |
+| `obsidian_ix_explain` | `entity`, `vault?` | JSON `{ok, entity, kind, summary, signature?, callers[], callees[]}`. Explains a codebase entity using the Ix map. |
+| `obsidian_ix_trace` | `flow`, `vault?` | JSON `{ok, flow, steps[{file, symbol, kind}], confidence}`. Traces a control-flow or data path through the system. |
+| `obsidian_ix_impact` | `entity`, `vault?` | JSON `{ok, entity, downstream[...], upstream[...], test_targets[]}`. Analyzes the downstream impact of changing an entity. |
+
+### Idea routing (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_float_idea` | `idea`, `project?`, `vault?` | JSON `{file, project, idea, timestamp}` |
+| `obsidian_incubate_project` | `name`, `description`, `why?`, `tags?`, `related_projects?`, `vault?` | JSON `{file, name, description}` |
+| `obsidian_incubating` | `vault?` | JSON array of project inception cards |
+| `obsidian_idea_files` | `vault?` | JSON array of `{file, project, idea_count}` |
+
+### Vault factory (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_create_vault` | `name`, `description?`, `seed_topics?`, `vault_root?`, `preset?` | JSON `{vault_path, name, preset, seed_topics}` |
+| `obsidian_seed_vault` | `vault_path`, `title`, `content`, `tags?`, `folder?` | JSON `{file, title, folder}` |
+| `obsidian_vault_presets` | *(none)* | JSON `{presets[], count}` |
+| `obsidian_list_vaults` | *(none)* | JSON `{vaults[], count}` |
+| `obsidian_discard_vault` | `vault_path`, `confirm?` | JSON `{vault_path, status}` |
+
+### Vault guardian (v0.5.0)
+
+| MCP Tool | Parameters | Returns |
+|---|---|---|
+| `obsidian_mark_auto_generated` | `vault?` | JSON result of files marked |
+| `obsidian_detect_unorganized` | `vault?` | JSON `{suggestions[], count}` |
+| `obsidian_organize_file` | `file_name`, `target_folder`, `vault?` | JSON result of file move |
+
+**Recommended pattern:** Use the MCP tools for all vault interaction.  Do not
+shell out to `obsidian` or `python main.py` from within an MCP-connected session.
+
+## CLI wrapper
+
+The CLI is available as `./bin/obsx` (no venv needed), `obsx` or
+`obsidian-connector` (after `pip install -e .`), or `python3 main.py`.
+Core CLI commands do not require Textual. The optional `menu` and
+`setup-wizard` commands require `pip install 'obsidian-connector[tui]'`
+(first-party installers and `scripts/setup.sh` include it).
+
+### CLI subcommands (100+ add_parser registrations, with parent groups)
+
+Parent groups (`graduate`, `drafts`, `vaults`, `templates`, `schedule`, `project`)
+are not directly runnable -- they contain the sub-subcommands listed below.
+
+| Command | Description | Mutating |
+|---|---|---|
+| `search` | Full-text search across the vault | no |
+| `read` | Read a note by name or path | no |
+| `tasks` | List tasks (filterable) | no |
+| `log-daily` | Append text to today's daily note | yes |
+| `log-decision` | Append a structured decision record | yes |
+| `create-research-note` | Create a note from a template | yes |
+| `find-prior-work` | Search + summarize top N matching notes | no |
+| `challenge` | Challenge a belief against vault evidence | no |
+| `emerge` | Cluster notes into idea groups | no |
+| `connect` | Find connections between two domains | no |
+| `neighborhood` | Graph neighborhood of a note | no |
+| `vault-structure` | Vault topology overview | no |
+| `backlinks` | All notes linking to a given note | no |
+| `ghost` | Analyze writing voice | no |
+| `drift` | Detect intention vs behavior drift | no |
+| `trace` | Trace idea evolution over time | no |
+| `ideas` | Surface latent ideas from graph | no |
+| `my-world` | Full vault snapshot | no |
+| `today` | Today brief | no |
+| `close` | End-of-day reflection | no |
+| `open-loops` | List open loops | no |
+| `graduate list` | Scan for graduate candidates | no |
+| `graduate execute` | Create an agent draft note | yes |
+| `delegations` | Scan for delegation instructions | no |
+| `context-load` | Load full context bundle | no |
+| `check-in` | Time-aware check-in with suggestions | no |
+| `rebuild-index` | Force-rebuild the vault graph index | no |
+| `doctor` | Health check on CLI and vault | no |
+| `uninstall` | Safely remove installation artifacts (two-mode: dry-run or force) | yes |
+| `sync-projects` | Sync all tracked repos into the vault | yes |
+| `project-status` | Get git status for a single project | no |
+| `active-threads` | List projects with active work | no |
+| `log-session` | Write a structured session log entry | yes |
+| `running-todo` | Show the running TODO state | no |
+| `init` | Initialize a new vault for project tracking | yes |
+| `rollback` | Restore vault files from a snapshot | yes |
+| `drafts list` | List all agent drafts | no |
+| `drafts approve` | Move a draft to a target folder | yes |
+| `drafts reject` | Archive a draft as rejected | yes |
+| `drafts clean` | Auto-archive stale drafts | yes |
+| `vaults list` | List all registered vaults | no |
+| `vaults add` | Register a new vault | yes |
+| `vaults remove` | Unregister a vault | yes |
+| `vaults default` | Set a vault as the default | yes |
+| `templates list` | List all templates in the vault | no |
+| `templates init` | Seed _templates/ from built-in templates | yes |
+| `templates check` | Show outdated templates | no |
+| `schedule list` | List all configured schedules | no |
+| `schedule preview` | Show what a schedule would run | no |
+| `schedule status` | Show health of all schedules | no |
+| `schedule run` | Execute a named schedule now | yes |
+| `schedule fire` | Fire an event trigger | yes |
+| `schedule tools` | List available automation tools | no |
+| `report` | Generate a vault report | no |
+| `stats` | Show session telemetry stats | no |
+| `project health` | Show health scores for all projects | no |
+| `project changelog` | Generate a project changelog | no |
+| `project packet` | Generate a weekly project packet | no |
+| `index-status` | Show index age and staleness | no |
+| `menu` | Open the interactive configuration dashboard (`tui` extra) | no |
+| `setup-wizard` | Run the interactive setup wizard (`tui` extra) | no |
+
+## Canonical JSON envelope
+
+> **Note:** MCP tools return raw JSON payloads, not wrapped in the canonical
+> envelope. The envelope schema applies to CLI `--json` output only.
+
+Every command supports `--json` (global flag, before the subcommand).
+The response is always wrapped in a canonical envelope:
+
+### Success
+
+```json
+{
+  "ok": true,
+  "command": "search",
+  "vault": "Obsidian Vault",
+  "duration_ms": 42,
+  "data": <command-specific payload>
+}
+```
+
+### Error
+
+```json
+{
+  "ok": false,
+  "command": "search",
+  "vault": "Obsidian Vault",
+  "error": {
+    "type": "ObsidianCLIError",
+    "message": "obsidian exited 1: ...",
+    "stderr": "raw stderr",
+    "exit_code": 1
+  }
+}
+```
+
+### Typed error types
+
+| Type | Meaning |
+|------|---------|
+| `ObsidianCLIError` | Generic CLI failure (fallback) |
+| `ObsidianNotFound` | Binary not on PATH |
+| `ObsidianNotRunning` | App not open / IPC unavailable |
+| `VaultNotFound` | Specified vault does not exist |
+| `CommandTimeout` | Subprocess timed out |
+| `MalformedCLIOutput` | JSON parse failure on CLI stdout |
+
+## Output modes
+
+| Flag | Behavior |
+|------|----------|
+| *(default)* | Human-readable, suitable for terminal display |
+| `--json` | Canonical JSON envelope to stdout (works on ALL commands) |
+
+The `--json` flag is global (placed before the subcommand).  When piping
+output to another tool or parsing programmatically, always use `--json`.
+The envelope's `ok` field tells you success/failure without parsing the message.
+
+## Safety features
+
+### Dry-run mode
+
+Mutating commands (`log-daily`, `log-decision`, `create-research-note`,
+`graduate execute`) support `--dry-run`.  In dry-run mode:
+
+- No vault mutation occurs.
+- The response `data` includes `"dry_run": true` and describes what would happen.
+- The action is still recorded in the audit log (with `"dry_run": true`).
+
+### Audit log
+
+Every mutating command writes an append-only JSONL line to:
+
+```
+~/.obsidian-connector/logs/YYYY-MM-DD.jsonl
+```
+
+Each line contains:
+
+```json
+{
+  "timestamp": "2026-03-06T00:32:00+00:00",
+  "command": "log-daily",
+  "args": {"content": "..."},
+  "vault": "Obsidian Vault",
+  "dry_run": false,
+  "affected_path": "daily",
+  "content_hash": "sha256hex..."
+}
+```
+
+### Agent draft provenance
+
+`graduate execute` writes notes to `Inbox/Agent Drafts/` with frontmatter:
+
+```yaml
+---
+source: agent
+status: draft
+created: "2026-03-06T14:00:00"
+source_file: "daily/2026-03-05.md"
+---
+```
+
+This enforces the "agents read, humans write" boundary. Drafts require
+human review before promotion to permanent notes.
+
+## Cross-platform support
+
+All platform-specific logic is centralized in `obsidian_connector/platform.py`.
+No other module hardcodes OS-specific paths. The `platform.py` module provides
+OS detection, path resolution, scheduling, notifications, and process detection.
+
+### Platform support matrix
+
+| Feature | macOS | Linux | Windows |
+|---------|-------|-------|---------|
+| CLI wrapper (Obsidian CLI) | Full | Full | Not available (no CLI) |
+| Graph tools (direct file access) | Full | Full | Full |
+| Thinking tools (direct file access) | Full | Full | Full |
+| Workflow OS | Full | Full | Full |
+| Scheduling | launchd (available) | systemd (available) | Task Scheduler (not implemented) |
+| Notifications | osascript (available) | notify-send (if installed) | PowerShell toast (not implemented) |
+| Uninstaller | Full | Full (systemd) | Partial (no scheduler cleanup) |
+| Config auto-detection | `~/Library/Application Support/` | `$XDG_CONFIG_HOME/` or `~/.config/` | `%APPDATA%/` |
+
+### Tools requiring Obsidian to be running
+
+These tools communicate with the Obsidian desktop app via IPC and require
+the app to be open:
+
+- `obsidian_search`, `obsidian_read`, `obsidian_tasks`
+- `obsidian_log_daily`, `obsidian_log_decision`, `obsidian_create_note`
+- `obsidian_find_prior_work`, `obsidian_challenge_belief`, `obsidian_emerge_ideas`, `obsidian_connect_domains`
+
+### Tools that work without Obsidian running
+
+These tools read vault `.md` files directly via pathlib and do not need
+the Obsidian desktop app or its CLI:
+
+- Graph: `obsidian_neighborhood`, `obsidian_vault_structure`, `obsidian_backlinks`, `obsidian_rebuild_index`
+- Thinking: `obsidian_ghost`, `obsidian_drift`, `obsidian_trace`, `obsidian_ideas`
+- Workflow OS: `obsidian_my_world`, `obsidian_today`, `obsidian_close_day`, `obsidian_open_loops`, `obsidian_graduate_candidates`, `obsidian_graduate_execute`, `obsidian_delegations`, `obsidian_context_load`, `obsidian_check_in`
+- Idea routing: `obsidian_float_idea`, `obsidian_incubate_project`, `obsidian_incubating`, `obsidian_idea_files`
+- Vault factory: `obsidian_create_vault`, `obsidian_seed_vault`, `obsidian_vault_presets`, `obsidian_list_vaults`, `obsidian_discard_vault`
+- Vault guardian: `obsidian_mark_auto_generated`, `obsidian_detect_unorganized`, `obsidian_organize_file`
+- System: `obsidian_doctor`, `obsidian_uninstall`
+
+### Platform-specific behavior notes
+
+**Scheduling backend:** The scheduling backend varies by OS. On macOS,
+`install_schedule()` writes launchd plists to `~/Library/LaunchAgents/`.
+On Linux, it writes systemd user units to `~/.config/systemd/user/`.
+Windows Task Scheduler support is planned for v0.3.0.
+
+**Config paths:** Vault auto-detection reads `obsidian.json` from the
+platform-appropriate config directory. On Linux, `XDG_CONFIG_HOME` is
+respected (falls back to `~/.config`). On Windows, `%APPDATA%` is used.
+
+**File backend fallback:** On platforms where the Obsidian CLI is not
+available (e.g., Windows, headless Linux), graph tools, thinking tools,
+and workflow OS tools still function because they read vault files directly
+via pathlib. Only CLI-dependent operations (search, read, tasks, mutations
+via the Obsidian CLI) require the desktop app.
+
+**Doctor diagnostics:** The `doctor` command reports platform-specific
+information including detected OS, scheduler type and availability,
+Claude Desktop config path, Obsidian process status, and a feature
+availability summary.
+
+## Vault targeting
+
+Resolution order (highest priority wins):
+
+1. `--vault <name>` flag on the command
+2. `OBSIDIAN_VAULT_PATH` environment variable (directory path)
+3. `OBSIDIAN_VAULT` environment variable (vault name)
+4. `vault_path` in `config.json`
+5. `default_vault` in `config.json`
+6. Auto-detected from platform-specific `obsidian.json` (macOS: `~/Library/Application Support/obsidian/obsidian.json`, Linux: `~/.config/obsidian/obsidian.json`, Windows: `%APPDATA%/obsidian/obsidian.json`)
+
+**`obsx creation` default.** Creation commands operate on the Creation Vault, so
+when no `--vault` (or `OBSIDIAN_VAULT_PATH`) is given they default to the vault
+named `creation` rather than `default_vault`.
+
+## Creation registry resolution
+
+The Creation repo registry (`sync_config.json`) is resolved independently of
+vault targeting and is the **single source of truth** shared by the Python/MCP
+engine and the bash nightly engine. Order (highest priority wins):
+
+1. `OBSIDIAN_SYNC_CONFIG` environment variable (explicit path)
+2. `<vault root>/sync_config.json` (per-vault override)
+3. `$XDG_CONFIG_HOME/obsidian-connector/sync_config.json`, else
+   `~/.config/obsidian-connector/sync_config.json` (canonical home)
+4. Auto-discovery under `github_root` (groupless fallback) when none exist
+
+See `creation/README.md` for the schema and `creation/sync_config.example.json`.
+
+## Failure modes and recovery
+
+### Step 1: run doctor
+
+```bash
+./bin/obsx --json doctor
+```
+
+This checks binary presence, version, vault resolution, and reachability.
+If any check fails, the `detail` field explains why.
+
+### Obsidian not running
+
+The CLI communicates with the running Obsidian desktop app via IPC.  If
+Obsidian is not open, CLI-based commands fail with `ObsidianNotRunning`.
+
+Graph tools (`neighborhood`, `vault-structure`, `backlinks`, `rebuild-index`,
+`ghost`, `drift`, `trace`, `ideas`) read vault files directly and work
+without Obsidian running, as long as the vault path can be resolved.
+
+### Timeout
+
+Commands time out after 30 seconds by default.  Override with:
+
+```bash
+export OBSIDIAN_TIMEOUT=60
+```
+
+### In-memory cache
+
+Read-only CLI commands (`search`, `read`, `tasks`) can be cached in-memory.
+The cache is disabled by default.
+
+```bash
+export OBSIDIAN_CACHE_TTL=30   # seconds
+```
+
+Mutations bypass the cache and invalidate all entries.
+
+## File layout
+
+```
+obsidian-connector/
+  scripts/install.sh               One-command installer
+  main.py                          Thin wrapper (backward compat)
+  config.json                      Project-level defaults
+  pyproject.toml                   Package metadata (console scripts: obsx)
+  TOOLS_CONTRACT.md                This file
+  obsidian_connector/              Core Python package
+    __init__.py                    Public API re-exports
+    __main__.py                    Module entry point
+    cli.py                         CLI entry point (100+ subcommands)
+    startup.py                     First-run marker + shared startup helpers
+    mcp_server.py                  MCP server (100+ tools for Claude Desktop)
+    client.py                      Core CLI wrapper + batch reads
+    client_fallback.py             Adapter: auto file_backend fallback when CLI unavailable
+    file_backend.py                CLI-less vault access via direct file reads
+    workflows.py                   Workflow OS: daily ops, loops, graduate, delegations, context
+    thinking.py                    Thinking tools: ghost, drift, trace, ideas
+    graph.py                       Graph indexing: links, tags, frontmatter, NoteIndex
+    index_store.py                 SQLite-backed persistent index (incremental updates)
+    write_manager.py               Atomic writes, snapshots, rollback, file locks
+    watcher.py                     Filesystem watcher for incremental re-index
+    draft_manager.py               Draft lifecycle: list, approve, reject, auto-archive
+    vault_registry.py              Named vault registry with profiles and policies
+    vault_factory.py               Vault discovery, creation, research topic seeding
+    vault_presets.py               13 vault preset templates
+    vault_guardian.py              Auto-generated file marking, unorganized note detection
+    vault_init.py                  Vault initialization wizard
+    idea_router.py                 Idea routing to project idea files
+    retrieval.py                   Hybrid search: lexical + semantic + graph + recency
+    embeddings.py                  Local embedding index (sentence-transformers, optional)
+    template_engine.py             Template loading, variable substitution, inheritance
+    scheduler.py                   Schedule config, workflow chaining, event triggers
+    automation.py                  Event-triggered automation: tool registry, chain runner
+    reports.py                     Report generation: weekly, monthly, vault health
+    telemetry.py                   Local-only session telemetry (zero network calls)
+    project_intelligence.py        Project health scores, changelogs, weekly packets
+    project_sync.py                Project sync engine: git state, dashboard, TODO, sessions
+    uninstall.py                   Safe two-mode uninstaller (CLI + MCP)
+    audit.py                       Append-only audit log
+    cache.py                       In-memory TTL cache
+    config.py                      Layered config + vault path resolution
+    doctor.py                      Health-check diagnostics (cross-platform)
+    envelope.py                    Canonical JSON envelope builder
+    errors.py                      Typed exception hierarchy
+    platform.py                    Platform abstraction (OS detection, paths, scheduling)
+    search.py                      Search result enrichment
+  scripts/
+    install.sh                     One-command installer
+    smoke_test.py                  Core function smoke tests
+    workflow_test.py               Workflow function smoke tests
+    thinking_tools_test.py         Thinking tools smoke tests
+    thinking_deep_test.py          Deep thinking module tests (56 assertions)
+    graduate_test.py               Graduate pipeline tests
+    delegation_test.py             Delegation detection tests
+    perf_test.py                   Performance and batch read tests
+    audit_test.py                  Audit log tests
+    cache_test.py                  Cache module tests
+    checkin_test.py                Check-in workflow tests
+    escaping_test.py               Content escaping edge-case tests
+    graph_test.py                  Graph module tests
+    index_test.py                  Index store tests
+    platform_test.py               Platform abstraction tests (OS, paths, scheduling, doctor)
+    mcp_launch_smoke.sh            MCP server launch smoke test
+  bin/
+    obsx                           CLI wrapper (no venv activation needed)
+    obsx-mcp                       MCP server wrapper
+```
+
+## Adding new commands
+
+1. Add the Obsidian CLI call in `client.py` (low-level) or `workflows.py`
+   (composed from existing functions).
+2. Export from `__init__.py`.
+3. Add an argparse subcommand in `cli.py` with both human and `--json`
+   output paths (use the envelope functions).
+3b. Add a `@mcp.tool()` function in `mcp_server.py` with `ToolAnnotations`.
+4. If mutating, add `--dry-run` and call `log_action()` from `audit.py`.
+5. Add a smoke test in `scripts/`.
+6. Update this contract and `README.md`.
+
+---
+
+## Creation Vault OS (spine v0)
+
+Modules: `creation_paths`, `creation_schema`, `creation_freshness`, `creation_events`,
+`creation_session`, `creation_status`. State lives **outside** iCloud at
+`~/.obsidian-connector/creation/<vault-id>/`; canonical vault notes are materialized views.
+
+**Repo registry.** The dashboard's Project grouping reads the canonical
+`sync_config.json` (see "Creation registry resolution" above), whose `groups`
+map and per-repo `group` collapse multi-repo projects (e.g. MCMC's repos) into a
+single Project. Both `obsx creation` and the bash nightly sync read the same
+file, so the two engines never drift. Creation commands default to the
+`creation` vault.
+
+### Canonical envelope
+
+All creation commands return the standard JSON envelope:
+
+```json
+{
+  "ok": true,
+  "command": "creation status",
+  "vault": "/path/to/vault",
+  "duration_ms": 12,
+  "data": { ... }
+}
+```
+
+### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation status` | `--json` | `{active_session, event_count, recent_events, stale_warnings}` | no |
+| `obsx creation freshness-audit` | `--json` | `{stale[], conflicting[], checked}` | no |
+| `obsx creation sync start` | `--repo`, `--branch`, `[--backlog-id]`, `[--allow-write]`, `[--dry-run]`, `--json` | `{session_id, path, dry_run}` | yes (default dry-run) |
+| `obsx creation sync checkpoint` | `--session-id`, `[--summary]`, `[--next-steps]`, `[--blockers]`, `[--confidence]`, `[--emergency]`, `[--allow-write]`, `--json` | `{checkpoint_id, session_id, dry_run}` | yes (default dry-run) |
+| `obsx creation sync end` | `--session-id`, `[--report]`, `[--next-action]`, `[--status]`, `[--allow-write]`, `--json` | `{session_id, status, dry_run}` | yes (default dry-run) |
+
+Mutating commands default to **dry-run** unless `--allow-write` is passed.
+All mutating commands call `audit.log_action(...)`.
+
+### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_status` | `vault?` | Read-only status |
+| `obsidian_creation_freshness_audit` | `vault?` | Backlog freshness scan |
+| `obsidian_creation_sync_start` | `repo`, `branch`, `backlog_id?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_sync_checkpoint` | `session_id`, `summary?`, `next_steps?`, `blockers?`, `confidence?`, `emergency?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_sync_end` | `session_id`, `report?`, `next_action?`, `status?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+
+### Creation Vault Backlog
+
+Cross-repo backlog engine: event-sourced CRUD with materialized notes in `Backlog/{project}/{id}.md`.
+
+#### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation backlog add` | `--title`, `--project`, `[--repos ...]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--ready-for-agent]`, `[--needs-decision]`, `[--allow-write]`, `--json` | `{id, path, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog update` | `--id`, `[--title]`, `[--priority]`, `[--status]`, `[--work-type]`, `[--owner]`, `[--next-action]`, `[--repos ...]`, `[--acceptance ...]`, `[--blocker ...]`, `[--depends-on ...]`, `[--urgency]`, `[--impact]`, `[--confidence]`, `[--authority-level]`, `[--source-repo]`, `[--source-commit]`, `[--source-pr]`, `[--allow-write]`, `--json` | `{id, path, status, dry_run}` | yes (default dry-run) |
+| `obsx creation backlog list` | `[--project]`, `[--status]`, `[--priority]`, `--json` | `{items, count}` | no |
+| `obsx creation backlog show` | `--id`, `--json` | full item dict or `{ok: false, error}` | no |
+| `obsx creation rebuild` | `[--allow-write]`, `--json` | `{count, ids, dry_run}` | yes (default dry-run) |
+
+Mutating commands default to **dry-run** unless `--allow-write` is passed. `update` applies only the flags you pass; an omitted scalar is left unchanged (there is no "clear to empty" for a scalar), while a list flag (`--repos`/`--acceptance`/`--blocker`/`--depends-on`) replaces the whole list, including to empty.
+
+#### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_backlog_add` | `title`, `project`, `repos?`, `priority?`, `status?`, `work_type?`, `owner?`, `next_action?`, `acceptance_criteria?`, `blockers?`, `dependencies?`, `urgency?`, `impact?`, `confidence?`, `authority_level?`, `source_repo?`, `source_commit?`, `source_pr?`, `ready_for_agent?`, `needs_decision?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_backlog_update` | `item_id`, `title?`, `priority?`, `status?`, `work_type?`, `owner?`, `next_action?`, `repos?`, `acceptance_criteria?`, `blockers?`, `dependencies?`, `urgency?`, `impact?`, `confidence?`, `authority_level?`, `source_repo?`, `source_commit?`, `source_pr?`, `dry_run?`, `vault?` | Defaults `dry_run=True` |
+| `obsidian_creation_backlog_list` | `project?`, `status?`, `priority?`, `vault?` | Read-only; returns `{items: [...]}` |
+| `obsidian_creation_backlog_show` | `item_id`, `vault?` | Read-only; returns item dict or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_rebuild` | `dry_run?`, `vault?` | Idempotent rebuild from event log; defaults `dry_run=True` |
+
+### Creation Dashboard (Task 7)
+
+Operating console: projects, repo statuses, next-action engine, dashboard refresh, and project migration. All reads are idempotent; writes default to `dry_run=True`.
+
+#### CLI commands
+
+| Command | Flags | Returns | Mutating |
+|---------|-------|---------|---------|
+| `obsx creation dashboard` | `[--project]`, `[--repo]`, `--json` | `{do_next, projects}` or `{scope, project, repo, do_next}` | no |
+| `obsx creation projects` | `--json` | `{projects, count}` | no |
+| `obsx creation project show <name>` | `--json` | project detail dict | no |
+| `obsx creation repo show <name>` | `[--with-tests]`, `[--with-build]`, `--json` | repo status dict | no |
+| `obsx creation next` | `[--project]`, `[--repo]`, `[--limit N]`, `--json` | `{items, count}` | no |
+| `obsx creation refresh` | `[--project]`, `[--repo]`, `[--allow-write]`, `--json` | `{written, dry_run}` | yes (default dry-run) |
+| `obsx creation migrate-projects` | `[--undo]`, `[--allow-write]`, `--json` | `{planned, written, ...}` | yes (default dry-run) |
+
+#### MCP tool equivalents
+
+| MCP Tool | Parameters | Notes |
+|----------|-----------|-------|
+| `obsidian_creation_dashboard` | `project?`, `repo?`, `vault?` | Read-only; global console or drilldown when project/repo supplied |
+| `obsidian_creation_projects` | `vault?` | Read-only; returns `{projects: [...], count}` |
+| `obsidian_creation_project_show` | `name`, `vault?` | Read-only; returns project detail or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_repo_show` | `name`, `with_tests?`, `with_build?`, `vault?` | Read-only; returns repo status dict or `{ok: false, error: {type: "NotFound", ...}}` |
+| `obsidian_creation_next` | `project?`, `repo?`, `limit?`, `vault?` | Read-only; returns `{items: [...], count}` |
+| `obsidian_creation_refresh` | `project?`, `repo?`, `dry_run?`, `vault?` | Idempotent; defaults `dry_run=True` |
+| `obsidian_creation_migrate_projects` | `undo?`, `dry_run?`, `vault?` | Idempotent; defaults `dry_run=True`; pass `undo=True` to reverse |

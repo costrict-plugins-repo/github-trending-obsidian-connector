@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+credentials.json
+serviceAccountKey.json
+
+# Stray logs
+firebase-debug.log
+
+# Claude Code internals
+.claude/worktrees/
+.claude/settings.json
+.claude/settings.local.json
+.claude/commands/
+
+# Development artifacts
+vault-context-drafts/
+
+# Harness Engineering (legacy)
+artifacts/
+lint-*.json
+staleness-report.json
+.harness/
+*.env.harness
+
+# Vendor scratch (graphify source import workspace)
+.tmp-graphify/
+
+# Build tools
+tools/node_modules/
+
+# Vendored JS subproject deps (regenerate with `npm install`; never tracked)
+node_modules/
+
+# Release build outputs (produced by `make release-build`)
+builds/
+dist/
+
+# Brainstorm companion
+.superpowers/
